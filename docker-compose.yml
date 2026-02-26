@@ -1,0 +1,49 @@
+name: bonus-backend
+
+services:
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: appdb
+      DB_USER: app
+      DB_PASSWORD: app
+      DATABASE_URL: postgres://app:app@postgres:5432/appdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npm run migrate && npm run dev"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/01-seed.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d appdb']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:
